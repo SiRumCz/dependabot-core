@@ -41,7 +41,7 @@ module Dependabot
                    commit_message_options: {}, vulnerabilities_fixed: {},
                    reviewers: nil, assignees: nil, milestone: nil,
                    branch_name_separator: "/", branch_name_prefix: "dependabot",
-                   label_language: false, automerge_candidate: false,
+                   label_language: false, rem_label: true, automerge_candidate: false,
                    github_redirection_service: "github-redirect.dependabot.com",
                    custom_headers: nil, require_up_to_date_base: false,
                    provider_metadata: {})
@@ -63,6 +63,7 @@ module Dependabot
       @branch_name_separator      = branch_name_separator
       @branch_name_prefix         = branch_name_prefix
       @label_language             = label_language
+      @rem_label                  = rem_label # customized label for rem-bot
       @automerge_candidate        = automerge_candidate
       @github_redirection_service = github_redirection_service
       @custom_headers             = custom_headers
@@ -94,6 +95,10 @@ module Dependabot
 
     def label_language?
       @label_language
+    end
+
+    def rem_label?
+      @rem_label
     end
 
     def automerge_candidate?
@@ -210,6 +215,7 @@ module Dependabot
           includes_security_fixes: includes_security_fixes?,
           dependencies: dependencies,
           label_language: label_language?,
+          rem_label: rem_label?,
           automerge_candidate: automerge_candidate?
         )
     end

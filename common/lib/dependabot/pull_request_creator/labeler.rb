@@ -8,6 +8,7 @@ module Dependabot
       DEPENDENCIES_LABEL_REGEX = %r{^[^/]*dependenc[^/]+$}i.freeze
       DEFAULT_DEPENDENCIES_LABEL = "dependencies"
       DEFAULT_SECURITY_LABEL = "security"
+      DEFAULT_REM_LABEL = "rem"
 
       @package_manager_labels = {}
 
@@ -27,7 +28,7 @@ module Dependabot
       end
 
       def initialize(source:, custom_labels:, credentials:, dependencies:,
-                     includes_security_fixes:, label_language:,
+                     includes_security_fixes:, label_language:, rem_label:,
                      automerge_candidate:)
         @source                  = source
         @custom_labels           = custom_labels
@@ -35,6 +36,7 @@ module Dependabot
         @dependencies            = dependencies
         @includes_security_fixes = includes_security_fixes
         @label_language          = label_language
+        @rem_label               = rem_label
         @automerge_candidate     = automerge_candidate
       end
 
@@ -42,6 +44,7 @@ module Dependabot
         create_default_dependencies_label_if_required
         create_default_security_label_if_required
         create_default_language_label_if_required
+        create_default_rem_labels_if_required
       end
 
       def labels_for_pr
@@ -79,6 +82,10 @@ module Dependabot
 
       def label_language?
         @label_language
+      end
+
+      def rem_label?
+        @rem_label
       end
 
       def includes_security_fixes?
@@ -171,12 +178,20 @@ module Dependabot
         create_language_label
       end
 
+      def create_default_rem_labels_if_required
+        return unless rem_label?
+        return if custom_labels
+
+        creat_rem_label
+      end
+
       def default_labels_for_pr
         if custom_labels then custom_labels & labels
         else
           [
             default_dependencies_label,
-            label_language? ? language_label : nil
+            label_language? ? language_label : nil,
+            rem_label? ? rem_label : nil
           ].compact
         end
       end
@@ -232,6 +247,10 @@ module Dependabot
         labels.find { |l| l.casecmp(label_name).zero? }
       end
 
+      def rem_label
+        labels.find { |l| l == DEFAULT_REM_LABEL }
+      end
+
       def labels
         @labels ||=
           case source.provider
@@ -277,7 +296,8 @@ module Dependabot
           *@labels,
           DEFAULT_DEPENDENCIES_LABEL,
           DEFAULT_SECURITY_LABEL,
-          langauge_name
+          langauge_name,
+          DEFAULT_REM_LABEL
         ].uniq
       end
 
@@ -304,6 +324,13 @@ module Dependabot
         when "github" then create_github_language_label
         when "gitlab" then create_gitlab_language_label
         when "azure" then @labels # Azure does not have centralised labels
+        else raise "Unsupported provider #{source.provider}"
+        end
+      end
+
+      def creat_rem_label
+        case source.provider
+        when "github" then create_github_rem_label 
         else raise "Unsupported provider #{source.provider}"
         end
       end
@@ -381,6 +408,18 @@ module Dependabot
                 fetch(:colour)
         )
         @labels = [*@labels, langauge_name].uniq
+      end
+
+      def create_github_rem_label
+        github_client_for_source.add_label(
+          source.repo, DEFAULT_REM_LABEL, "fccf3e",
+          description: "Pull requests that contain a REM graph"
+        )
+        @labels = [*@labels, DEFAULT_REM_LABEL].uniq
+      rescue Octokit::UnprocessableEntity => e
+        raise unless e.errors.first.fetch(:code) == "already_exists"
+
+        @labels = [*@labels, DEFAULT_REM_LABEL].uniq
       end
 
       def github_client_for_source
