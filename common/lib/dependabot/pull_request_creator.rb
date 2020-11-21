@@ -33,7 +33,7 @@ module Dependabot
                 :commit_message_options, :vulnerabilities_fixed,
                 :reviewers, :assignees, :milestone, :branch_name_separator,
                 :branch_name_prefix, :github_redirection_service,
-                :custom_headers, :provider_metadata
+                :custom_headers, :provider_metadata, :rem_graph_file, :rem_graph_api
 
     def initialize(source:, base_commit:, dependencies:, files:, credentials:,
                    pr_message_header: nil, pr_message_footer: nil,
@@ -41,10 +41,10 @@ module Dependabot
                    commit_message_options: {}, vulnerabilities_fixed: {},
                    reviewers: nil, assignees: nil, milestone: nil,
                    branch_name_separator: "/", branch_name_prefix: "dependabot",
-                   label_language: false, rem_label: true, automerge_candidate: false,
+                   label_language: false, automerge_candidate: false,
                    github_redirection_service: "github-redirect.dependabot.com",
                    custom_headers: nil, require_up_to_date_base: false,
-                   provider_metadata: {})
+                   provider_metadata: {}, rem_graph_file: nil, rem_graph_api: nil)
       @dependencies               = dependencies
       @source                     = source
       @base_commit                = base_commit
@@ -63,7 +63,8 @@ module Dependabot
       @branch_name_separator      = branch_name_separator
       @branch_name_prefix         = branch_name_prefix
       @label_language             = label_language
-      @rem_label                  = rem_label # customized label for rem-bot
+      @rem_graph_file             = rem_graph_file # package.json for creating rem dependency graph
+      @rem_graph_api              = rem_graph_api # option for rem-bot by zkchen
       @automerge_candidate        = automerge_candidate
       @github_redirection_service = github_redirection_service
       @custom_headers             = custom_headers
@@ -97,8 +98,8 @@ module Dependabot
       @label_language
     end
 
-    def rem_label?
-      @rem_label
+    def includes_rem_graph?
+      not (rem_graph_api.nil? or rem_graph_api.empty?)
     end
 
     def automerge_candidate?
@@ -191,6 +192,8 @@ module Dependabot
           pr_message_header: pr_message_header,
           pr_message_footer: pr_message_footer,
           vulnerabilities_fixed: vulnerabilities_fixed,
+          rem_graph_file: rem_graph_file,
+          rem_graph_api: includes_rem_graph? ? rem_graph_api : nil,
           github_redirection_service: github_redirection_service
         )
     end
@@ -215,7 +218,7 @@ module Dependabot
           includes_security_fixes: includes_security_fixes?,
           dependencies: dependencies,
           label_language: label_language?,
-          rem_label: rem_label?,
+          includes_rem_graph: includes_rem_graph?,
           automerge_candidate: automerge_candidate?
         )
     end

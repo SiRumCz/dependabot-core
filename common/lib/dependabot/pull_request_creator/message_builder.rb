@@ -5,6 +5,7 @@ require "dependabot/clients/github_with_retries"
 require "dependabot/clients/gitlab_with_retries"
 require "dependabot/metadata_finders"
 require "dependabot/pull_request_creator"
+require "httparty"
 
 # rubocop:disable Metrics/ClassLength
 module Dependabot
@@ -18,12 +19,14 @@ module Dependabot
       attr_reader :source, :dependencies, :files, :credentials,
                   :pr_message_header, :pr_message_footer,
                   :commit_message_options, :vulnerabilities_fixed,
-                  :github_redirection_service
+                  :github_redirection_service, :rem_graph_file, 
+                  :rem_graph_api
 
       def initialize(source:, dependencies:, files:, credentials:,
                      pr_message_header: nil, pr_message_footer: nil,
                      commit_message_options: {}, vulnerabilities_fixed: {},
-                     github_redirection_service: nil)
+                     github_redirection_service: nil, rem_graph_file: nil, 
+                     rem_graph_api: nil)
         @dependencies               = dependencies
         @files                      = files
         @source                     = source
@@ -32,6 +35,8 @@ module Dependabot
         @pr_message_footer          = pr_message_footer
         @commit_message_options     = commit_message_options
         @vulnerabilities_fixed      = vulnerabilities_fixed
+        @rem_graph_file             = rem_graph_file
+        @rem_graph_api              = rem_graph_api
         @github_redirection_service = github_redirection_service
       end
 
@@ -319,8 +324,28 @@ module Dependabot
           source: source,
           metadata_finder: metadata_finder(dependency),
           vulnerabilities_fixed: vulnerabilities_fixed[dependency.name],
+          rem_graph_metadata: rem_graph_metadata,
           github_redirection_service: github_redirection_service
         ).to_s
+      end
+
+      def rem_graph_metadata
+        return nil if rem_graph_api.nil? or rem_graph_api.empty?
+        return nil if rem_graph_file.nil? or rem_graph_file.content.empty?
+
+        body = {}
+        body.compare_by_identity
+        body['depfile'] = rem_graph_file.content
+        dependencies.each do |dep|
+          body['packages'] = dep.name
+        end
+
+        resp = HTTParty.post(rem_graph_api, body: body, timeout: 600)
+        if resp.success?
+          return resp.parsed_response
+        else
+          raise "rem graph api failed #{resp.response}"
+        end
       end
 
       def changelog_url(dependency)

@@ -28,7 +28,7 @@ module Dependabot
       end
 
       def initialize(source:, custom_labels:, credentials:, dependencies:,
-                     includes_security_fixes:, label_language:, rem_label:,
+                     includes_security_fixes:, label_language:, includes_rem_graph:,
                      automerge_candidate:)
         @source                  = source
         @custom_labels           = custom_labels
@@ -36,7 +36,7 @@ module Dependabot
         @dependencies            = dependencies
         @includes_security_fixes = includes_security_fixes
         @label_language          = label_language
-        @rem_label               = rem_label
+        @includes_rem_graph      = includes_rem_graph
         @automerge_candidate     = automerge_candidate
       end
 
@@ -50,6 +50,7 @@ module Dependabot
       def labels_for_pr
         [
           *default_labels_for_pr,
+          includes_rem_graph? ? rem_label : nil,
           includes_security_fixes? ? security_label : nil,
           label_update_type? ? semver_label : nil,
           automerge_candidate? ? automerge_label : nil
@@ -84,8 +85,8 @@ module Dependabot
         @label_language
       end
 
-      def rem_label?
-        @rem_label
+      def includes_rem_graph?
+        @includes_rem_graph
       end
 
       def includes_security_fixes?
@@ -179,7 +180,7 @@ module Dependabot
       end
 
       def create_default_rem_labels_if_required
-        return unless rem_label?
+        return unless includes_rem_graph?
         return if custom_labels
 
         creat_rem_label
@@ -191,7 +192,6 @@ module Dependabot
           [
             default_dependencies_label,
             label_language? ? language_label : nil,
-            rem_label? ? rem_label : nil
           ].compact
         end
       end

@@ -9,7 +9,7 @@ module Dependabot
         extend Forwardable
 
         attr_reader :dependency, :source, :metadata_finder,
-                    :vulnerabilities_fixed, :github_redirection_service
+                    :vulnerabilities_fixed, :github_redirection_service, :rem_graph_metadata
 
         def_delegators :metadata_finder,
                        :changelog_url,
@@ -24,16 +24,18 @@ module Dependabot
                        :upgrade_guide_text
 
         def initialize(dependency:, source:, metadata_finder:,
-                       vulnerabilities_fixed:, github_redirection_service:)
+                       vulnerabilities_fixed:, github_redirection_service:, rem_graph_metadata:)
           @dependency = dependency
           @source = source
           @metadata_finder = metadata_finder
           @vulnerabilities_fixed = vulnerabilities_fixed
+          @rem_graph_metadata = rem_graph_metadata
           @github_redirection_service = github_redirection_service
         end
 
         def to_s
           msg = ""
+          msg += rem_highlight_cascade
           msg += vulnerabilities_cascade
           msg += release_cascade
           msg += changelog_cascade
@@ -45,6 +47,18 @@ module Dependabot
         end
 
         private
+
+        def rem_highlight_cascade
+          return "" if rem_graph_metadata.nil? or rem_graph_metadata.empty?
+          msg = ""
+          if rem_graph_metadata['pr_link']
+            msg += "![REM](#{rem_graph_metadata['pr_link']})"
+          end
+          if rem_graph_metadata['live_link']
+            msg += "[click here to see live demo](#{rem_graph_metadata['live_link']})"
+          end
+          build_details_tag(summary: "Ripple-Effect of Metrics (REM)", body: msg, open_details: true)
+        end
 
         def vulnerabilities_cascade
           return "" unless vulnerabilities_fixed&.any?
@@ -144,13 +158,18 @@ module Dependabot
           )
         end
 
-        def build_details_tag(summary:, body:)
+        def build_details_tag(summary:, body:, open_details: false)
           # Azure DevOps does not support <details> tag (https://developercommunity.visualstudio.com/content/problem/608769/add-support-for-in-markdown.html)
           # CodeCommit does not support the <details> tag (no url available)
+          details_tag = {
+            :default => "<details>",
+            :open => "<details open>",
+            :ending => "</details>"
+          }
           if source_provider_supports_html?
-            msg = "<details>\n<summary>#{summary}</summary>\n\n"
+            msg =  "#{open_details ? details_tag[:open] : details_tag[:default]}\n<summary>#{summary}</summary>\n\n"
             msg += body
-            msg + "</details>\n"
+            msg + "#{details_tag[:ending]}\n"
           else
             "\n\##{summary}\n\n#{body}"
           end
