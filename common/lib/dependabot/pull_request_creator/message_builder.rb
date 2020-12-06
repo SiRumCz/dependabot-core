@@ -19,13 +19,13 @@ module Dependabot
       attr_reader :source, :dependencies, :files, :credentials,
                   :pr_message_header, :pr_message_footer,
                   :commit_message_options, :vulnerabilities_fixed,
-                  :github_redirection_service, :rem_graph_file, 
+                  :github_redirection_service, :rem_graph_files, 
                   :rem_graph_api
 
       def initialize(source:, dependencies:, files:, credentials:,
                      pr_message_header: nil, pr_message_footer: nil,
                      commit_message_options: {}, vulnerabilities_fixed: {},
-                     github_redirection_service: nil, rem_graph_file: nil, 
+                     github_redirection_service: nil, rem_graph_files: nil, 
                      rem_graph_api: nil)
         @dependencies               = dependencies
         @files                      = files
@@ -35,7 +35,7 @@ module Dependabot
         @pr_message_footer          = pr_message_footer
         @commit_message_options     = commit_message_options
         @vulnerabilities_fixed      = vulnerabilities_fixed
-        @rem_graph_file             = rem_graph_file
+        @rem_graph_files             = rem_graph_files
         @rem_graph_api              = rem_graph_api
         @github_redirection_service = github_redirection_service
       end
@@ -331,16 +331,18 @@ module Dependabot
 
       def rem_graph_metadata
         return nil if rem_graph_api.nil? or rem_graph_api.empty?
-        return nil if rem_graph_file.nil? or rem_graph_file.content.empty?
+        return nil if rem_graph_files.nil? or rem_graph_files.size < 2
 
         body = {}
         body.compare_by_identity
-        body['depfile'] = rem_graph_file.content
+        body['package_json'] = rem_graph_files[:package_json].content
+        body['lockfile'] = rem_graph_files[:lockfile].content
         dependencies.each do |dep|
-          body['packages'] = dep.name
+          dep_prev_version = previous_version(dep)
+          body['packages'] = dep.name + "!" + dep_prev_version
         end
 
-        resp = HTTParty.post(rem_graph_api, body: body, timeout: 600)
+        resp = HTTParty.post(rem_graph_api, body: body, timeout: 600, headers: { "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36" })
         if resp.success?
           return resp.parsed_response
         else
