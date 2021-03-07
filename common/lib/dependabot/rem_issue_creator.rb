@@ -10,10 +10,10 @@ module Dependabot
     class RepoDisabled < StandardError; end
 
     attr_reader :source, :credentials, :custom_labels, :lockfile,
-                :package_json, :metric, :rem_api
+                :package_json, :metric, :rem_api, :commit
 
     def initialize(source:, credentials:, custom_labels:[], lockfile:, package_json:, 
-                   metric:, rem_api:)
+                   metric:, rem_api:, commit:)
       @source        = source
       @credentials   = credentials
       @custom_labels = custom_labels
@@ -21,6 +21,7 @@ module Dependabot
       @package_json  = package_json
       @metric        = metric
       @rem_api       = rem_api
+      @commit        = commit
     end
 
     def create
@@ -81,11 +82,14 @@ module Dependabot
     def build_issue_description
       urls = retrieve_rem_urls
       msg = ""
+      if commit
+        msg += "REM dependency graph built on commit [#{commit[0..6]}](https://#{source.hostname+'/'+source.repo+'/tree/'+commit})\n"
+      end
       if urls['issue_link']
         msg += "![REM](#{urls['issue_link']})"
       end
       if urls['live_link']
-        msg += "[click here to see live demo](#{urls['live_link']})"
+        msg += "[click here to see live view](#{urls['live_link']})"
       end
       msg
     end

@@ -55,7 +55,7 @@ module Dependabot
             msg += "![REM](#{rem_graph_metadata['pr_link']})"
           end
           if rem_graph_metadata['live_link']
-            msg += "[click here to see live demo](#{rem_graph_metadata['live_link']})"
+            msg += "[click here to see live view](#{rem_graph_metadata['live_link']})"
           end
           build_details_tag(summary: "Ripple-Effect of Metrics (REM)", body: msg, open_details: true)
         end
