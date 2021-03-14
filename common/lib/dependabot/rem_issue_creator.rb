@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "httparty"
 
 module Dependabot
   class RemIssueCreator
@@ -10,16 +11,17 @@ module Dependabot
     class RepoDisabled < StandardError; end
 
     attr_reader :source, :credentials, :custom_labels, :lockfile,
-                :package_json, :metric, :rem_api, :commit
+                :package_json, :metric, :re_nodes, :rem_api, :commit
 
-    def initialize(source:, credentials:, custom_labels:[], lockfile:, package_json:, 
-                   metric:, rem_api:, commit:)
+    def initialize(source:, credentials:, custom_labels: [], lockfile:, package_json:, 
+                   metric: nil, re_nodes: [], rem_api:, commit:)
       @source        = source
       @credentials   = credentials
       @custom_labels = custom_labels
       @lockfile      = lockfile
       @package_json  = package_json
       @metric        = metric
+      @re_nodes      = re_nodes
       @rem_api       = rem_api
       @commit        = commit
     end
@@ -52,18 +54,16 @@ module Dependabot
       return nil if lockfile.nil? or package_json.nil?
 
       body = {}
-      body.compare_by_identity
       body['package_json'] = package_json.content
       body['lockfile'] = lockfile.content
-      body['lockfile'] = lockfile.content
+      body['re_nodes'] = re_nodes.map{ |n| n.join('!') }
       if metric
         body['highlight_metric'] = metric
       end
-      
       resp = HTTParty.post(
         rem_api, 
         body: body, 
-        timeout: 1000, 
+        timeout: 1800, 
         headers: { 
           "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36" 
           }
@@ -76,14 +76,21 @@ module Dependabot
     end
 
     def issue_title
-      "Ripple-Effect of Metrics dependency graph on branch: #{source.branch}, directory: #{source.directory}"
+      "Ripple-Effect of Metrics dependency graphs on branch: #{source.branch}, directory: #{source.directory}"
     end
 
     def build_issue_description
       urls = retrieve_rem_urls
       msg = ""
+      if re_nodes
+        msg += "**#{re_nodes.size}** vulnerable dependencies found in dependency graph:\n"
+        re_nodes.each do |re_node|
+          msg += "#{re_node[0]}(#{re_node[1]}), "
+        end
+        msg += "\n"
+      end
       if commit
-        msg += "REM dependency graph built on commit [#{commit[0..6]}](https://#{source.hostname+'/'+source.repo+'/tree/'+commit})\n"
+        msg += "\nREM dependency graph built on commit [#{commit[0..6]}](https://#{source.hostname+'/'+source.repo+'/tree/'+commit})\n"
       end
       if urls['issue_link']
         msg += "![REM](#{urls['issue_link']})"

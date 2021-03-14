@@ -334,14 +334,9 @@ module Dependabot
         return nil if rem_graph_files.nil? or rem_graph_files.size < 2
 
         body = {}
-        body.compare_by_identity
         body['package_json'] = rem_graph_files[:package_json].content
         body['lockfile'] = rem_graph_files[:lockfile].content
-        dependencies.each do |dep|
-          dep_prev_version = previous_version(dep)
-          body['packages'] = dep.name + "!" + dep_prev_version
-        end
-
+        body['packages'] = dependencies.map{ |dep| dep.name + "!" + previous_version(dep) }
         resp = HTTParty.post(rem_graph_api, body: body, timeout: 600, headers: { "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36" })
         if resp.success?
           return resp.parsed_response
