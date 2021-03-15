@@ -63,9 +63,9 @@ module Dependabot
       resp = HTTParty.post(
         rem_api, 
         body: body, 
-        timeout: 1800, 
+        timeout: 99999, 
         headers: { 
-          "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36" 
+          "User-Agent" => "Mozilla/5.0" 
           }
         )
       if resp.success?
